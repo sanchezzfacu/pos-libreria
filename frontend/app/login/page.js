@@ -15,7 +15,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const data = await api("/auth/login", { method: "POST", body: { username, password } });
+      const data = await api("/api/auth/login", { method: "POST", body: { username, password } });
       setToken(data.token);
       router.push("/pos");
     } catch (err) {

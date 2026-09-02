@@ -12,7 +12,7 @@ export default function CategoriasPage() {
 
   async function cargar() {
     try {
-      const data = await api("/categories");
+      const data = await api("/api/categories");
       setCategorias(data);
     } catch (err) {
       setError(err.message);

@@ -85,7 +85,7 @@ export default function PosPage() {
       setBuscando(true);
       try {
         const params = new URLSearchParams({ q: valor, onlyActive: "true", pageSize: "8" });
-        const data = await api(`/products?${params.toString()}`);
+        const data = await api(`/api/products?${params.toString()}`);
         setResultados(data.items);
       } catch {
         setResultados([]);
@@ -164,7 +164,7 @@ export default function PosPage() {
     }
     debounceClienteRef.current = setTimeout(async () => {
       try {
-        const data = await api(`/customers?q=${encodeURIComponent(valor)}`);
+        const data = await api(`/api/customers?q=${encodeURIComponent(valor)}`);
         setResultadosCliente(data);
       } catch {
         setResultadosCliente([]);

@@ -15,7 +15,7 @@ export default function InventarioPage() {
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
-    api("/suppliers").then(setSuppliers).catch(() => {});
+    api("/api/suppliers").then(setSuppliers).catch(() => {});
   }, []);
 
   const [filtroTexto, setFiltroTexto] = useState("");
@@ -27,7 +27,7 @@ export default function InventarioPage() {
     try {
       const formData = new FormData();
       formData.append("pdf", file);
-      const data = await api(`/suppliers/${supplierId}/import-pdf`, {
+      const data = await api(`/api/suppliers/${supplierId}/import-pdf`, {
         method: "POST",
         body: formData,
         isFormData: true,
@@ -51,7 +51,7 @@ export default function InventarioPage() {
     if (itemsElegidos.length === 0) return;
     setLoading(true);
     try {
-      const data = await api("/products/bulk-activate", {
+      const data = await api("/api/products/bulk-activate", {
         method: "POST",
         body: { supplierId, margen: margen / 100, items: itemsElegidos },
       });
