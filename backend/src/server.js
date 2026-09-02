@@ -18,7 +18,15 @@ const app = express();
 // "dev" es el formato compacto y coloreado, pensado para desarrollo.
 app.use(morgan("dev"));
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "*", credentials: true }));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "*",
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Responder a las solicitudes Preflight
+app.options('*', cors());
 // Límite alto porque activar productos desde un PDF grande (miles de ítems)
 // manda un payload considerable en un solo POST.
 app.use(express.json({ limit: "25mb" }));
