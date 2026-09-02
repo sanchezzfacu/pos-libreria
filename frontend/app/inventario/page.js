@@ -15,7 +15,7 @@ export default function InventarioPage() {
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
-    api("/api/suppliers").then(setSuppliers).catch(() => {});
+    api("/suppliers").then(setSuppliers).catch(() => {});
   }, []);
 
   const [filtroTexto, setFiltroTexto] = useState("");
@@ -27,7 +27,7 @@ export default function InventarioPage() {
     try {
       const formData = new FormData();
       formData.append("pdf", file);
-      const data = await api(`/api/suppliers/${supplierId}/import-pdf`, {
+      const data = await api(`/suppliers/${supplierId}/import-pdf`, {
         method: "POST",
         body: formData,
         isFormData: true,

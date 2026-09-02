@@ -48,7 +48,7 @@ export default function ActualizarPreciosPage() {
     try {
       const formData = new FormData();
       formData.append("pdf", file);
-      const data = await api(`/api/suppliers/${supplierId}/preview-update`, {
+      const data = await api(`/suppliers/${supplierId}/preview-update`, {
         method: "POST",
         body: formData,
         isFormData: true,
@@ -149,7 +149,7 @@ export default function ActualizarPreciosPage() {
         codigoProveedor: f.codigoProveedor,
         costo: f.costo,
       }));
-      const data = await api("/api/products/bulk-activate", {
+      const data = await api("/products/bulk-activate", {
         method: "POST",
         body: { supplierId, margen: margenNuevos / 100, items },
       });
@@ -189,7 +189,7 @@ export default function ActualizarPreciosPage() {
         newMargin: f.margenPct / 100,
         newSellingPrice: f.newSellingPrice,
       }));
-      const data = await api("/api/products/apply-price-update", { method: "POST", body: { updates } });
+      const data = await api("/products/apply-price-update", { method: "POST", body: { updates } });
       setAviso(`${data.actualizados} productos actualizados en la caja.`);
       const codigosAplicados = new Set(seleccionadas.map((f) => f.codigoProveedor));
       setFilas((prev) => prev.filter((f) => !codigosAplicados.has(f.codigoProveedor)));
