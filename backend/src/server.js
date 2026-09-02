@@ -18,7 +18,7 @@ const app = express();
 // "dev" es el formato compacto y coloreado, pensado para desarrollo.
 app.use(morgan("dev"));
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
+app.use(cors({ origin: process.env.FRONTEND_URL || "*", credentials: true }));
 // Límite alto porque activar productos desde un PDF grande (miles de ítems)
 // manda un payload considerable en un solo POST.
 app.use(express.json({ limit: "25mb" }));
@@ -42,7 +42,9 @@ const PORT = process.env.PORT || 4000;
 
 connectDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`[server] Backend corriendo en http://localhost:${PORT}`));
+    app.listen(PORT, () =>
+      console.log(`[server] Backend corriendo en http://localhost:${PORT}`),
+    );
   })
   .catch((err) => {
     console.error("[server] No se pudo conectar a MongoDB:", err.message);
