@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-paper text-ink-900 antialiased;
+  }
+  ::selection {
+    @apply bg-stamp-400/30;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white border border-ink-100 rounded-xl shadow-ledger p-5;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-4 py-2.5 font-semibold text-sm
+           transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-ink-700 text-white hover:bg-ink-600;
+  }
+  .btn-ghost {
+    @apply btn bg-ink-50 text-ink-700 hover:bg-ink-100;
+  }
+  .input {
+    @apply w-full rounded-lg border border-ink-100 px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-stamp-400/50 focus:border-stamp-500;
+  }
+  .price {
+    @apply font-mono tabular-nums;
+  }
+  .table-ledger :where(th) {
+    @apply text-left text-xs uppercase tracking-wide text-ink-400 font-semibold pb-2 border-b border-ink-100;
+  }
+  .table-ledger :where(td) {
+    @apply py-2 text-sm border-b border-ink-50;
+  }
+}
+
+/* --- Impresión de ticket (impresora térmica 80mm) ---
+   El ticket vive siempre en el DOM pero oculto en pantalla. Al imprimir,
+   se oculta todo lo demás y se muestra únicamente el ticket — así
+   window.print() imprime solo el comprobante, no la pantalla del POS. */
+#ticket-imprimible {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #ticket-imprimible,
+  #ticket-imprimible * {
+    visibility: visible;
+  }
+  #ticket-imprimible {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80mm; /* sin esto, el div interno de 72mm con margin:auto no tenía
+                    espacio real para centrarse — quedaba pegado a la izquierda */
+  }
+}
+
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
