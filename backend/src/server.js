@@ -14,24 +14,25 @@ const categoryRoutes = require("./routes/categories.routes");
 
 const app = express();
 
-// Log de todas las peticiones HTTP en consola: método, ruta, status y tiempo.
-// "dev" es el formato compacto y coloreado, pensado para desarrollo.
 app.use(morgan("dev"));
 
+// Configuración de CORS
+const origin = process.env.FRONTEND_URL || "*";
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",
+  origin: origin,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Responder a las solicitudes Preflight
+// Preflight universal para Express 4.x
 app.options('*', cors());
-// Límite alto porque activar productos desde un PDF grande (miles de ítems)
-// manda un payload considerable en un solo POST.
+
 app.use(express.json({ limit: "25mb" }));
 
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+// Health Check (útil para que Railway sepa que la app está viva)
+app.get("/api/health", (req, res) => res.json({ ok: true, status: "healthy" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/suppliers", supplierRoutes);
@@ -41,20 +42,23 @@ app.use("/api/expenses", expenseRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/categories", categoryRoutes);
 
+// Manejo centralizado de errores con cabecera de fallback
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error("[error]", err);
   res.status(500).json({ error: "Error interno del servidor." });
 });
 
 const PORT = process.env.PORT || 4000;
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, () =>
-      console.log(`[server] Backend corriendo en http://localhost:${PORT}`),
-    );
-  })
-  .catch((err) => {
-    console.error("[server] No se pudo conectar a MongoDB:", err.message);
-    process.exit(1);
-  });
+// Levantar el servidor HTTP primero e intentar conectar a DB
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[server] Backend escuchando en 0.0.0.0:${PORT}`);
+  
+  connectDB()
+    .then(() => {
+      console.log("[server] Conexión exitosa a MongoDB.");
+    })
+    .catch((err) => {
+      console.error("[server] Error al conectar a MongoDB:", err.message);
+    });
+});
