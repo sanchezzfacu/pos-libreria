@@ -23,6 +23,7 @@ export async function api(path, { method = "GET", body, isFormData = false } = {
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers,
+    credentials: "include",
     body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
   });
 
