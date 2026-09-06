@@ -200,7 +200,7 @@ async function createManual(req, res) {
 // frontend) y se recalcula el margen real a partir de él.
 async function updateProduct(req, res) {
   const { id } = req.params;
-  const { costo, margen, precioVenta, isActive, stock, mostrarEnAccesoRapido, familia } = req.body;
+  const { costo, margen, precioVenta, isActive, stock, mostrarEnAccesoRapido, familia, descripcion } = req.body;
 
   const producto = await Product.findById(id);
   if (!producto) return res.status(404).json({ error: "Producto no encontrado." });
@@ -209,6 +209,10 @@ async function updateProduct(req, res) {
   if (stock !== undefined) producto.stock = stock;
   if (mostrarEnAccesoRapido !== undefined) producto.mostrarEnAccesoRapido = mostrarEnAccesoRapido;
   if (familia !== undefined) producto.familia = familia || "SIN FAMILIA";
+  if (descripcion !== undefined) {
+    if (!descripcion.trim()) return res.status(400).json({ error: "La descripción no puede quedar vacía." });
+    producto.descripcion = descripcion.trim();
+  }
 
   const costoNuevo = costo !== undefined ? Number(costo) : producto.costo;
 

@@ -91,33 +91,26 @@ npm run dev              # http://localhost:3000
 ## 3. Flujo de uso
 
 1. **Login** con el usuario/contraseña del `.env`.
-2. **Inventario** (`/inventario`): elegís el proveedor, subís el PDF de la
-   lista de precios, y en la vista previa **buscás por nombre y tildás
-   solo lo que realmente tenés** (todo arranca destildado — con miles de
-   productos por PDF es mucho más rápido así que destildar uno por uno).
-3. **Categorías** (`/inventario/categorias`): creás las categorías que
-   quieras (Librería, Papelería, Mercería, Regalería, Fotocopias…) desde
-   un formulario simple. Después las elegís al agregar un producto manual,
-   o se las cambiás a cualquier producto ya cargado desde Inventario
-   completo. Cada categoría tiene un link "Ver productos" para consultar
-   rápido qué tiene cargado.
-4. **Inventario completo** (`/inventario/productos`): tabla con todos los
-   productos (de cualquier origen) para consultar y **editar precio, margen
-   y stock directamente** (los tres se recalculan entre sí, igual que en
-   alta manual), vincular un **código de barras real** si el producto lo
-   tiene, marcar cuáles aparecen como **acceso rápido** en el POS, y
-   **cambiar la categoría** de cualquier producto con un click. Se busca
-   por descripción, código de proveedor o código de barras, se puede
-   filtrar por categoría, y se puede ordenar por costo, precio o stock
-   tocando el encabezado de esa columna. Todo precio de venta redondea
-   solo a múltiplo de $10 (para arriba, nunca se pierde margen) — ya no
-   circulan monedas.
+2. **Inventario** (`/inventario`): esta es la pantalla principal — la
+   tabla con todos los productos, de cualquier origen. Acá editás
+   **nombre, precio, margen, stock y categoría** directamente con un
+   click (los tres numéricos se recalculan entre sí, igual que en alta
+   manual), vinculás un **código de barras real** si el producto lo
+   tiene, y marcás cuáles aparecen como **acceso rápido** en el POS. Se
+   busca por descripción, código de proveedor o código de barras, se
+   puede filtrar por categoría, y se puede ordenar por costo, precio o
+   stock tocando el encabezado de esa columna. Todo precio de venta
+   redondea solo a múltiplo de $10 (para arriba, nunca se pierde margen)
+   — ya no circulan monedas.
 
-   Desde acá también está el botón **"Ajustar todos los precios"**: sube o
-   baja el precio de venta de todos los productos activos un mismo
-   porcentaje de una sola vez (por ej. +2.1% para acompañar la inflación
-   mensual, o negativo para bajar precios), con un paso de confirmación
-   antes de aplicarlo.
+   Arriba de la tabla están las pestañas hacia el resto de las
+   herramientas de inventario: **Importar PDF de proveedor**,
+   **Categorías**, **Actualizar precios** y **Agregar producto manual**.
+   También está el botón **"Ajustar todos los precios"**: sube o baja el
+   precio de venta de todos los productos activos un mismo porcentaje de
+   una sola vez (por ej. +2.1% para acompañar la inflación mensual, o
+   negativo para bajar precios), con un paso de confirmación antes de
+   aplicarlo.
 
    *Sobre el código de barras:* no es obligatorio. Para vender un producto
    alcanza con el código que ya trae el PDF del proveedor (se busca
@@ -125,6 +118,17 @@ npm run dev              # http://localhost:3000
    tiene impreso un código de barras real: hacé click adentro, escaneá con
    la pistola (el lector escribe el número y presiona Enter solo) o
    escribilo a mano.
+3. **Importar PDF de proveedor** (`/inventario/importar`): elegís el
+   proveedor, subís el PDF de la lista de precios, y en la vista previa
+   **buscás por nombre y tildás solo lo que realmente tenés** (todo
+   arranca destildado — con miles de productos por PDF es mucho más
+   rápido así que destildar uno por uno).
+4. **Categorías** (`/inventario/categorias`): creás las categorías que
+   quieras (Librería, Papelería, Mercería, Regalería, Fotocopias…) desde
+   un formulario simple. Después las elegís al agregar un producto manual,
+   o se las cambiás a cualquier producto ya cargado desde Inventario.
+   Cada categoría tiene un link "Ver productos" para consultar rápido qué
+   tiene cargado.
 5. **Actualizar precios** (`/inventario/actualizar-precios`): cuando el
    mismo proveedor manda una lista nueva, la subís acá. Se compara cada
    código contra lo que ya tenés activo. Las tarjetas de resumen (y la

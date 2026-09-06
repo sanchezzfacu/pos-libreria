@@ -202,6 +202,15 @@ export default function ProductoManualPage() {
               className="input"
               value={form.barcode}
               onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
+              onKeyDown={(e) => {
+                // Sin esto, el Enter que manda el lector de código de barras
+                // (o tipearlo a mano y apretar Enter) mandaba todo el
+                // formulario antes de tiempo, en vez de solo completar este campo.
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
               placeholder="Hacé click y escaneá, o escribilo a mano"
             />
           </div>

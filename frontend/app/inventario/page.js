@@ -1,103 +1,154 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import NavBar from "../../components/NavBar";
 import { api } from "../../lib/api";
+import { redondearPrecio } from "../../lib/pricing";
+
+const PAGE_SIZE = 50;
 
 export default function InventarioPage() {
-  const [suppliers, setSuppliers] = useState([]);
-  const [supplierId, setSupplierId] = useState("");
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [selected, setSelected] = useState({});
-  const [margen, setMargen] = useState(45);
-  const [loading, setLoading] = useState(false);
-  const [mensaje, setMensaje] = useState("");
+  return (
+    <Suspense fallback={null}>
+      <InventarioContenido />
+    </Suspense>
+  );
+}
+
+function InventarioContenido() {
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState(searchParams.get("categoria") || "");
+  const [categorias, setCategorias] = useState([]);
+  const [sortBy, setSortBy] = useState("descripcion");
+  const [sortDir, setSortDir] = useState("asc");
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState({ items: [], total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState({}); // { [productId]: true }
+  const debounceRef = useRef(null);
+
+  const [ajusteAbierto, setAjusteAbierto] = useState(false);
+  const [porcentajeAjuste, setPorcentajeAjuste] = useState("2.1");
+  const [confirmandoAjuste, setConfirmandoAjuste] = useState(false);
+  const [aplicandoAjuste, setAplicandoAjuste] = useState(false);
+  const [avisoAjuste, setAvisoAjuste] = useState("");
 
   useEffect(() => {
-    api("/suppliers").then(setSuppliers).catch(() => {});
+    api("/categories")
+      .then(setCategorias)
+      .catch(() => {});
   }, []);
 
-  const [filtroTexto, setFiltroTexto] = useState("");
-
-  async function handleImport() {
-    if (!supplierId || !file) return;
+  const cargar = useCallback(async () => {
     setLoading(true);
-    setMensaje("");
+    setError("");
     try {
-      const formData = new FormData();
-      formData.append("pdf", file);
-      const data = await api(`/suppliers/${supplierId}/import-pdf`, {
-        method: "POST",
-        body: formData,
-        isFormData: true,
+      const params = new URLSearchParams({
+        q: query,
+        sortBy,
+        sortDir,
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
       });
-      setPreview(data);
-      setMargen(Math.round((data.supplier.defaultMargin || 0.45) * 100));
-      // Destildados por defecto: con miles de productos por PDF es mucho
-      // más rápido tildar los pocos que sí tenés que destildar el resto.
-      const sel = {};
-      data.items.forEach((_, i) => (sel[i] = false));
-      setSelected(sel);
+      if (categoriaFiltro) params.set("familia", categoriaFiltro);
+      const resultado = await api(`/products?${params.toString()}`);
+      setData(resultado);
     } catch (err) {
-      setMensaje(err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
+  }, [query, categoriaFiltro, sortBy, sortDir, page]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  function ordenarPor(campo) {
+    if (sortBy === campo) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(campo);
+      setSortDir(campo === "stock" || campo === "precioVenta" ? "desc" : "asc");
+    }
+    setPage(1);
   }
 
-  async function handleActivar() {
-    const itemsElegidos = preview.items.filter((_, i) => selected[i]);
-    if (itemsElegidos.length === 0) return;
-    setLoading(true);
+  async function guardarCampo(producto, cambios) {
+    setGuardando((g) => ({ ...g, [producto._id]: true }));
     try {
-      const data = await api("/api/products/bulk-activate", {
-        method: "POST",
-        body: { supplierId, margen: margen / 100, items: itemsElegidos },
-      });
-      setMensaje(`${data.creados} productos agregados al inventario activo.`);
-      setPreview(null);
-      setFile(null);
+      const actualizado = await api(`/products/${producto._id}`, { method: "PATCH", body: cambios });
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.map((p) => (p._id === producto._id ? actualizado : p)),
+      }));
     } catch (err) {
-      setMensaje(err.message);
+      setError(err.message);
     } finally {
-      setLoading(false);
+      setGuardando((g) => ({ ...g, [producto._id]: false }));
     }
   }
 
-  const seleccionados = preview ? Object.values(selected).filter(Boolean).length : 0;
-
-  const itemsFiltrados = preview
-    ? preview.items
-        .map((item, i) => ({ item, i }))
-        .filter(({ item }) =>
-          filtroTexto ? item.descripcion.toLowerCase().includes(filtroTexto.toLowerCase()) : true
-        )
-    : [];
-
-  function marcarVisibles(valor) {
-    setSelected((prev) => {
-      const copia = { ...prev };
-      itemsFiltrados.forEach(({ i }) => (copia[i] = valor));
-      return copia;
-    });
+  async function guardarBarcode(producto, valor) {
+    if (valor === (producto.barcode || "")) return;
+    setGuardando((g) => ({ ...g, [producto._id]: true }));
+    try {
+      const actualizado = await api(`/products/${producto._id}/barcode`, {
+        method: "PATCH",
+        body: { barcode: valor },
+      });
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.map((p) => (p._id === producto._id ? actualizado : p)),
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGuardando((g) => ({ ...g, [producto._id]: false }));
+    }
   }
+
+  async function aplicarAjusteGlobal() {
+    const pct = Number(porcentajeAjuste);
+    if (!pct) return;
+    setAplicandoAjuste(true);
+    setAvisoAjuste("");
+    try {
+      const resultado = await api("/products/bulk-price-adjustment", {
+        method: "POST",
+        body: { percent: pct },
+      });
+      setAvisoAjuste(`Listo: ${resultado.actualizados} productos ajustados ${pct > 0 ? "+" : ""}${pct}%.`);
+      setConfirmandoAjuste(false);
+      cargar();
+    } catch (err) {
+      setAvisoAjuste(err.message);
+    } finally {
+      setAplicandoAjuste(false);
+    }
+  }
+
+  const totalPaginas = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   return (
     <div className="min-h-screen bg-paper">
       <NavBar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-xs tracking-widest text-stamp-500 uppercase mb-1">Onboarding</p>
-            <h1 className="text-2xl font-semibold text-ink-900">Importar lista de precios</h1>
-            <p className="text-sm text-ink-400 mt-1">
-              Elegí el proveedor, subí el PDF y seleccioná qué productos entran al inventario activo.
+            <p className="font-mono text-xs tracking-widest text-stamp-500 uppercase mb-1">Catálogo</p>
+            <h1 className="text-2xl font-semibold text-ink-900">Inventario</h1>
+            <p className="text-sm text-ink-400 mt-1 max-w-2xl">
+              Consultá y editá nombre, precio, margen y stock directamente, vinculá códigos de barra y elegí
+              qué aparece como acceso rápido en el punto de venta.
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Link href="/inventario/productos" className="btn-ghost">
-              Ver inventario completo
+            <Link href="/inventario/importar" className="btn-ghost">
+              Importar PDF de proveedor
             </Link>
             <Link href="/inventario/categorias" className="btn-ghost">
               Categorías
@@ -111,134 +162,315 @@ export default function InventarioPage() {
           </div>
         </div>
 
-        <div className="card">
-          <div className="flex flex-wrap items-end gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-ink-400 uppercase mb-1">Proveedor</label>
-              <select
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                className="input min-w-[220px]"
-              >
-                <option value="">Elegí un proveedor…</option>
-                {suppliers.map((s) => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-ink-400 uppercase mb-1">Archivo PDF</label>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setFile(e.target.files[0])}
-                className="text-sm text-ink-600 file:mr-3 file:btn-ghost file:border-0"
-              />
-            </div>
-
-            <button
-              onClick={handleImport}
-              disabled={!supplierId || !file || loading}
-              className="btn-primary"
-            >
-              {loading && !preview ? "Leyendo…" : "Leer PDF"}
-            </button>
-          </div>
-          {mensaje && !preview && (
-            <p className="text-sm text-ink-600 mt-3 border-t border-ink-50 pt-3">{mensaje}</p>
-          )}
+        <div className="flex items-center justify-end gap-4 flex-wrap">
+          <button onClick={() => setAjusteAbierto((v) => !v)} className="btn-ghost shrink-0">
+            {ajusteAbierto ? "Cerrar" : "Ajustar todos los precios"}
+          </button>
         </div>
 
-        {preview && (
-          <div className="card">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div>
-                <h2 className="font-semibold text-ink-900">
-                  {preview.itemsParseados} productos encontrados
-                </h2>
-                {preview.lineasSinParsear > 0 && (
-                  <p className="text-xs text-stamp-600 mt-0.5">
-                    {preview.lineasSinParsear} líneas no se pudieron leer con el patrón actual de este proveedor.
-                  </p>
-                )}
+        {ajusteAbierto && (
+          <div className="card bg-stamp-400/10 border-stamp-400/30">
+            <h2 className="font-semibold text-ink-900 mb-1">Ajuste general de precios</h2>
+            <p className="text-sm text-ink-600 mb-3">
+              Sube o baja el precio de venta de <strong>todos los productos activos</strong> un mismo
+              porcentaje (ej. para acompañar la inflación mensual). Usá un número negativo para bajar
+              precios. El resultado se redondea a múltiplo de $10 y el margen se recalcula solo.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center rounded-lg border border-ink-100 overflow-hidden bg-white">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={porcentajeAjuste}
+                  onChange={(e) => {
+                    setPorcentajeAjuste(e.target.value);
+                    setConfirmandoAjuste(false);
+                  }}
+                  className="w-24 px-3 py-2 text-sm font-mono text-right focus:outline-none"
+                />
+                <span className="bg-ink-50 px-3 py-2 text-sm text-ink-400">%</span>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-ink-400 uppercase">Margen</label>
-                <div className="flex items-center rounded-lg border border-ink-100 overflow-hidden">
-                  <input
-                    type="number"
-                    value={margen}
-                    onChange={(e) => setMargen(Number(e.target.value))}
-                    className="w-16 px-2 py-1.5 text-sm font-mono text-right focus:outline-none"
-                  />
-                  <span className="bg-ink-50 px-2 py-1.5 text-sm text-ink-400">%</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3 mb-3">
-              <input
-                type="text"
-                placeholder="Buscar por descripción para tildar más rápido…"
-                value={filtroTexto}
-                onChange={(e) => setFiltroTexto(e.target.value)}
-                className="input flex-1 min-w-[220px]"
-              />
-              <button onClick={() => marcarVisibles(true)} className="btn-ghost">
-                Marcar visibles
-              </button>
-              <button onClick={() => marcarVisibles(false)} className="btn-ghost">
-                Desmarcar visibles
-              </button>
+              {!confirmandoAjuste ? (
+                <button
+                  onClick={() => setConfirmandoAjuste(true)}
+                  disabled={!Number(porcentajeAjuste)}
+                  className="btn-primary"
+                >
+                  Aplicar a todos los activos
+                </button>
+              ) : (
+                <>
+                  <span className="text-sm text-ink-700 font-medium">
+                    ¿Confirmás {Number(porcentajeAjuste) > 0 ? "+" : ""}
+                    {porcentajeAjuste}% en TODOS los productos activos?
+                  </span>
+                  <button onClick={aplicarAjusteGlobal} disabled={aplicandoAjuste} className="btn-primary bg-red-600 hover:bg-red-700">
+                    {aplicandoAjuste ? "Aplicando…" : "Sí, confirmar"}
+                  </button>
+                  <button onClick={() => setConfirmandoAjuste(false)} className="btn-ghost">
+                    Cancelar
+                  </button>
+                </>
+              )}
             </div>
-
-            <div className="max-h-[420px] overflow-auto rounded-lg border border-ink-50">
-              <table className="table-ledger w-full min-w-[600px]">
-                <thead className="sticky top-0 bg-white">
-                  <tr>
-                    <th className="w-10 px-3"></th>
-                    <th>Familia</th>
-                    <th>Descripción</th>
-                    <th>Código</th>
-                    <th className="text-right">Costo</th>
-                    <th className="text-right pr-3">Precio venta</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itemsFiltrados.map(({ item, i }) => (
-                    <tr key={i} className="hover:bg-ink-50/50">
-                      <td className="px-3">
-                        <input
-                          type="checkbox"
-                          checked={!!selected[i]}
-                          onChange={(e) => setSelected({ ...selected, [i]: e.target.checked })}
-                          className="accent-ink-700"
-                        />
-                      </td>
-                      <td className="text-ink-400">{item.familia}</td>
-                      <td className="text-ink-900">{item.descripcion}</td>
-                      <td className="price text-ink-400">{item.codigoProveedor}</td>
-                      <td className="price text-right">${item.costo.toFixed(2)}</td>
-                      <td className="price text-right pr-3 font-semibold">
-                        ${(item.costo * (1 + margen / 100)).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-sm text-ink-400">{seleccionados} seleccionados</span>
-              <button onClick={handleActivar} disabled={loading || seleccionados === 0} className="btn-primary bg-cash hover:bg-cash/90">
-                Agregar seleccionados al inventario
-              </button>
-            </div>
-            {mensaje && <p className="text-sm text-ink-600 mt-3 border-t border-ink-50 pt-3">{mensaje}</p>}
+            {avisoAjuste && <p className="text-sm text-ink-700 mt-3">{avisoAjuste}</p>}
           </div>
         )}
+
+        <div className="card">
+          <div className="flex flex-wrap gap-3 mb-4">
+            <input
+              type="text"
+              placeholder="Buscar por descripción, código de proveedor o código de barras…"
+              defaultValue={query}
+              onChange={(e) => {
+                clearTimeout(debounceRef.current);
+                const valor = e.target.value;
+                debounceRef.current = setTimeout(() => {
+                  setQuery(valor);
+                  setPage(1);
+                }, 300);
+              }}
+              className="input flex-1 min-w-[220px]"
+            />
+            <select
+              value={categoriaFiltro}
+              onChange={(e) => {
+                setCategoriaFiltro(e.target.value);
+                setPage(1);
+              }}
+              className="input max-w-[200px]"
+            >
+              <option value="">Todas las categorías</option>
+              {categorias.map((c) => (
+                <option key={c._id} value={c.nombre}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+
+          <div className="overflow-x-auto rounded-lg border border-ink-50">
+            <table className="table-ledger w-full min-w-[820px]">
+              <thead className="bg-white">
+                <tr>
+                  <th className="cursor-pointer select-none" onClick={() => ordenarPor("descripcion")}>
+                    Producto {sortBy === "descripcion" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="text-right cursor-pointer select-none" onClick={() => ordenarPor("costo")}>
+                    Costo {sortBy === "costo" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="text-right">Margen</th>
+                  <th className="text-right cursor-pointer select-none" onClick={() => ordenarPor("precioVenta")}>
+                    Venta {sortBy === "precioVenta" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="text-right cursor-pointer select-none" onClick={() => ordenarPor("stock")}>
+                    Stock {sortBy === "stock" && (sortDir === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th>Cód. barras</th>
+                  <th className="text-center">Acc. rápido</th>
+                  <th className="text-center">Activo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((p) => (
+                  <FilaProducto
+                    key={p._id}
+                    producto={p}
+                    categorias={categorias}
+                    guardando={!!guardando[p._id]}
+                    onGuardarCampo={guardarCampo}
+                    onGuardarBarcode={guardarBarcode}
+                  />
+                ))}
+                {!loading && data.items.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="text-center text-ink-400 py-8">
+                      No se encontraron productos.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+            <span className="text-sm text-ink-400">
+              {data.total} productos {loading && "· cargando…"}
+            </span>
+            <div className="flex items-center gap-2">
+              <button className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                ← Anterior
+              </button>
+              <span className="text-sm text-ink-600 px-2">
+                Página {page} de {totalPaginas}
+              </span>
+              <button
+                className="btn-ghost"
+                disabled={page >= totalPaginas}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
+  );
+}
+
+function FilaProducto({ producto, categorias, guardando, onGuardarCampo, onGuardarBarcode }) {
+  const [descripcionLocal, setDescripcionLocal] = useState(producto.descripcion);
+  const [stockLocal, setStockLocal] = useState(producto.stock ?? 0);
+  const [barcodeLocal, setBarcodeLocal] = useState(producto.barcode || "");
+  const [costoLocal, setCostoLocal] = useState(String(producto.costo ?? 0));
+  const [margenLocal, setMargenLocal] = useState(String(Math.round((producto.margen ?? 0) * 100)));
+  const [ventaLocal, setVentaLocal] = useState(String(producto.precioVenta ?? 0));
+
+  function onBlurDescripcion() {
+    const valor = descripcionLocal.trim();
+    if (!valor) {
+      setDescripcionLocal(producto.descripcion); // no se permite vaciar el nombre
+      return;
+    }
+    if (valor !== producto.descripcion) onGuardarCampo(producto, { descripcion: valor });
+  }
+
+  function onChangeCosto(v) {
+    setCostoLocal(v);
+    const costo = Number(v) || 0;
+    const margen = Number(margenLocal) || 0;
+    if (costo > 0) setVentaLocal(String(redondearPrecio(costo * (1 + margen / 100))));
+  }
+
+  function onChangeMargen(v) {
+    setMargenLocal(v);
+    const costo = Number(costoLocal) || 0;
+    const margen = Number(v) || 0;
+    if (costo > 0) setVentaLocal(String(redondearPrecio(costo * (1 + margen / 100))));
+  }
+
+  function onChangeVenta(v) {
+    setVentaLocal(v);
+    const costo = Number(costoLocal) || 0;
+    const venta = Number(v) || 0;
+    if (costo > 0) setMargenLocal(String(Math.round(((venta - costo) / costo) * 100)));
+  }
+
+  function onBlurCosto() {
+    onGuardarCampo(producto, { costo: Number(costoLocal) || 0, margen: (Number(margenLocal) || 0) / 100 });
+  }
+  function onBlurMargen() {
+    onGuardarCampo(producto, { costo: Number(costoLocal) || 0, margen: (Number(margenLocal) || 0) / 100 });
+  }
+  function onBlurVenta() {
+    const redondeado = redondearPrecio(Number(ventaLocal) || 0);
+    setVentaLocal(String(redondeado));
+    onGuardarCampo(producto, { costo: Number(costoLocal) || 0, precioVenta: redondeado });
+  }
+
+  return (
+    <tr className={`hover:bg-ink-50/50 ${guardando ? "opacity-60" : ""}`}>
+      <td className="text-ink-900 min-w-[200px]">
+        <input
+          type="text"
+          value={descripcionLocal}
+          onChange={(e) => setDescripcionLocal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          onBlur={onBlurDescripcion}
+          className="w-full font-medium bg-transparent border border-transparent hover:border-ink-100 focus:border-stamp-500 focus:bg-white rounded px-1 py-0.5 -ml-1"
+        />
+        <select
+          value={producto.familia === "SIN FAMILIA" ? "" : producto.familia || ""}
+          onChange={(e) => onGuardarCampo(producto, { familia: e.target.value })}
+          className="block mt-1 text-xs text-ink-400 border border-transparent hover:border-ink-100 rounded px-1 py-0.5 -ml-1 bg-transparent"
+        >
+          <option value="">Sin categoría</option>
+          {categorias.map((c) => (
+            <option key={c._id} value={c.nombre}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="text-right">
+        <input
+          type="number"
+          step="0.01"
+          value={costoLocal}
+          onChange={(e) => onChangeCosto(e.target.value)}
+          onBlur={onBlurCosto}
+          className="w-20 text-right price rounded border border-ink-100 py-1 px-1.5"
+        />
+      </td>
+      <td className="text-right">
+        <div className="flex items-center justify-end gap-0.5">
+          <input
+            type="number"
+            value={margenLocal}
+            onChange={(e) => onChangeMargen(e.target.value)}
+            onBlur={onBlurMargen}
+            className="w-14 text-right price rounded border border-ink-100 py-1 px-1.5"
+          />
+          <span className="text-ink-300 text-xs">%</span>
+        </div>
+      </td>
+      <td className="text-right">
+        <input
+          type="number"
+          step="10"
+          value={ventaLocal}
+          onChange={(e) => onChangeVenta(e.target.value)}
+          onBlur={onBlurVenta}
+          className="w-24 text-right price font-semibold rounded border border-ink-100 py-1 px-1.5"
+        />
+      </td>
+      <td className="text-right">
+        <input
+          type="number"
+          value={stockLocal}
+          onChange={(e) => setStockLocal(e.target.value)}
+          onBlur={() => onGuardarCampo(producto, { stock: Number(stockLocal) })}
+          className={`w-20 text-right price rounded border py-1 px-1.5 ${
+            Number(stockLocal) <= 0 ? "border-red-200 bg-red-50 text-red-700" : "border-ink-100"
+          }`}
+        />
+      </td>
+      <td>
+        <input
+          type="text"
+          value={barcodeLocal}
+          placeholder="Sin código"
+          onChange={(e) => setBarcodeLocal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          onBlur={() => onGuardarBarcode(producto, barcodeLocal)}
+          className="w-32 price rounded border border-ink-100 py-1 px-1.5"
+        />
+      </td>
+      <td className="text-center">
+        <input
+          type="checkbox"
+          checked={!!producto.mostrarEnAccesoRapido}
+          onChange={(e) => onGuardarCampo(producto, { mostrarEnAccesoRapido: e.target.checked })}
+          className="accent-ink-700"
+        />
+      </td>
+      <td className="text-center">
+        <input
+          type="checkbox"
+          checked={!!producto.isActive}
+          onChange={(e) => onGuardarCampo(producto, { isActive: e.target.checked })}
+          className="accent-cash"
+        />
+      </td>
+    </tr>
   );
 }

@@ -55,7 +55,7 @@ export default function CategoriasPage() {
           Creá las categorías que necesites (Librería, Papelería, Mercería, Regalería, Fotocopias…). Después
           las vas a poder elegir al agregar un producto manual, o cambiarle la categoría a cualquier producto
           desde{" "}
-          <Link href="/inventario/productos" className="underline">
+          <Link href="/inventario" className="underline">
             Inventario completo
           </Link>
           .
@@ -93,7 +93,7 @@ export default function CategoriasPage() {
                 <div key={c._id} className="flex items-center justify-between py-2.5">
                   <span className="text-ink-900">{c.nombre}</span>
                   <Link
-                    href={`/inventario/productos?categoria=${encodeURIComponent(c.nombre)}`}
+                    href={`/inventario?categoria=${encodeURIComponent(c.nombre)}`}
                     className="text-sm text-ink-400 hover:text-ink-700 underline"
                   >
                     Ver productos

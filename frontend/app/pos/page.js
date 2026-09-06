@@ -295,7 +295,7 @@ export default function PosPage() {
             {accesoRapido.length === 0 ? (
               <p className="text-sm text-ink-400">
                 No marcaste ningún producto como acceso rápido todavía. Podés hacerlo desde{" "}
-                <a href="/inventario/productos" className="underline">Inventario completo</a>.
+                <a href="/inventario" className="underline">Inventario</a>.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
