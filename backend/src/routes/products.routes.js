@@ -11,6 +11,7 @@ const {
   updateProduct,
   applyPriceUpdate,
   bulkPriceAdjustment,
+  inventoryValue,
 } = require("../controllers/products.controller");
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.use(requireAuth);
 
 router.get("/", searchProducts);
 router.get("/active", activeProducts);
+router.get("/inventory-value", inventoryValue);
 router.get("/barcode/:barcode", findByBarcode);
 router.post("/bulk-activate", bulkActivate);
 router.post("/apply-price-update", applyPriceUpdate);

@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "seed:admin": "node src/utils/seedAdmin.js",
     "seed:proveedor": "node src/utils/seedSupplierMyM.js",
-    "fix:parser": "node src/utils/fixSupplierParser.js"
+    "fix:parser": "node src/utils/fixSupplierParser.js",
+    "fix:stock": "node src/utils/fixStockOutliers.js"
   },
   "dependencies": {
     "@afipsdk/afip.js": "^1.0.5",

@@ -161,13 +161,18 @@ npm run dev              # http://localhost:3000
    Abajo, el **historial de ventas** de ese día con la hora de cada una —
    si alguna está mal, se puede eliminar directamente (pide confirmación)
    y el stock que esa venta había descontado se repone solo.
-9. **Estadísticas** (`/estadisticas`): ventas, costo de mercadería, ganancia
-   bruta y neta (ya descontando los gastos que cargues ahí mismo), margen
-   promedio y un gráfico de ventas/ganancia por día — cada KPI tiene un
-   ícono con tooltip explicando qué significa. Más abajo, un ranking de
-   **productos más vendidos** en el período (con el stock actual de cada
-   uno) para saber qué reponer antes de quedarte sin stock. Rango: hoy,
-   últimos 7 o últimos 30 días.
+9. **Estadísticas** (`/estadisticas`): arriba de todo, una tarjeta oscura
+   con el **valor del inventario** — cuánta plata tenés invertida en todo
+   el stock cargado, a precio de costo y a precio de venta, más la
+   ganancia potencial si se vendiera todo. Es una foto de ahora mismo, por
+   eso está separada visualmente y no depende del selector de rango de
+   fechas de abajo. Debajo, los KPIs de siempre: ventas, costo de
+   mercadería, ganancia bruta y neta (ya descontando los gastos que
+   cargues ahí mismo), margen promedio y un gráfico de ventas/ganancia por
+   día — cada KPI tiene un ícono con tooltip explicando qué significa. Más
+   abajo, un ranking de **productos más vendidos** en el período (con el
+   stock actual de cada uno) para saber qué reponer antes de quedarte sin
+   stock. Rango: hoy, últimos 7 o últimos 30 días.
 
 ## Facturación electrónica AFIP (Factura C) e impresión
 

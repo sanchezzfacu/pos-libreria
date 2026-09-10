@@ -1,8 +1,16 @@
 const Product = require("../models/Product");
 const Supplier = require("../models/Supplier");
-const { calcularPrecioYMargen, redondearPrecioVenta } = require("../utils/pricing");
+const {
+  calcularPrecioYMargen,
+  redondearPrecioVenta,
+} = require("../utils/pricing");
 
-const ORDENABLES = { stock: "stock", descripcion: "descripcion", precioVenta: "precioVenta", costo: "costo" };
+const ORDENABLES = {
+  stock: "stock",
+  descripcion: "descripcion",
+  precioVenta: "precioVenta",
+  costo: "costo",
+};
 
 function escaparRegex(texto) {
   return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -32,7 +40,11 @@ async function searchProducts(req, res) {
 
   if (q) {
     const regex = new RegExp(escaparRegex(q.trim()), "i");
-    filtro.$or = [{ descripcion: regex }, { codigoProveedor: regex }, { barcode: regex }];
+    filtro.$or = [
+      { descripcion: regex },
+      { codigoProveedor: regex },
+      { barcode: regex },
+    ];
   }
 
   const campoOrden = ORDENABLES[sortBy] || "descripcion";
@@ -53,7 +65,9 @@ async function searchProducts(req, res) {
 }
 
 async function activeProducts(req, res) {
-  const productos = await Product.find({ isActive: true }).sort({ descripcion: 1 });
+  const productos = await Product.find({ isActive: true }).sort({
+    descripcion: 1,
+  });
   res.json(productos);
 }
 
@@ -64,16 +78,22 @@ async function bulkActivate(req, res) {
   const { supplierId, margen, items } = req.body;
 
   const supplier = await Supplier.findById(supplierId);
-  if (!supplier) return res.status(404).json({ error: "Proveedor no encontrado." });
+  if (!supplier)
+    return res.status(404).json({ error: "Proveedor no encontrado." });
   if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: "No se enviaron productos para activar." });
+    return res
+      .status(400)
+      .json({ error: "No se enviaron productos para activar." });
   }
 
   const margenFinal = margen ?? supplier.defaultMargin;
 
   const operaciones = items.map((item) => {
     const codigo = item.codigoProveedor.toUpperCase();
-    const { precioVenta, margen: margenReal } = calcularPrecioYMargen(item.costo, margenFinal);
+    const { precioVenta, margen: margenReal } = calcularPrecioYMargen(
+      item.costo,
+      margenFinal,
+    );
     return {
       updateOne: {
         filter: { supplier: supplier._id, codigoProveedor: codigo },
@@ -107,15 +127,23 @@ async function linkBarcode(req, res) {
   const { id } = req.params;
   const { barcode } = req.body;
 
-  if (!barcode) return res.status(400).json({ error: "Falta el código de barras." });
+  if (!barcode)
+    return res.status(400).json({ error: "Falta el código de barras." });
 
   const yaUsado = await Product.findOne({ barcode, _id: { $ne: id } });
   if (yaUsado) {
-    return res.status(409).json({ error: "Ese código de barras ya está asociado a otro producto." });
+    return res.status(409).json({
+      error: "Ese código de barras ya está asociado a otro producto.",
+    });
   }
 
-  const producto = await Product.findByIdAndUpdate(id, { barcode }, { new: true });
-  if (!producto) return res.status(404).json({ error: "Producto no encontrado." });
+  const producto = await Product.findByIdAndUpdate(
+    id,
+    { barcode },
+    { new: true },
+  );
+  if (!producto)
+    return res.status(404).json({ error: "Producto no encontrado." });
 
   res.json(producto);
 }
@@ -132,7 +160,10 @@ async function findByBarcode(req, res) {
     $or: [{ barcode: barcode.trim() }, { codigoProveedor: codigoNormalizado }],
   });
 
-  if (!producto) return res.status(404).json({ error: "No hay ningún producto con ese código." });
+  if (!producto)
+    return res
+      .status(404)
+      .json({ error: "No hay ningún producto con ese código." });
   res.json(producto);
 }
 
@@ -162,19 +193,34 @@ async function createGeneric(req, res) {
 // margen y precioVenta coherentes entre sí (los sincroniza en pantalla);
 // acá solo se redondea el precio final a múltiplo de 10.
 async function createManual(req, res) {
-  const { descripcion, familia, costo, margen, precioVenta, barcode, stock } = req.body;
+  const { descripcion, familia, costo, margen, precioVenta, barcode, stock } =
+    req.body;
 
-  if (!descripcion) return res.status(400).json({ error: "Falta la descripción." });
+  if (!descripcion)
+    return res.status(400).json({ error: "Falta la descripción." });
   if (costo === undefined && precioVenta === undefined) {
-    return res.status(400).json({ error: "Indicá al menos el costo o el precio de venta." });
+    return res
+      .status(400)
+      .json({ error: "Indicá al menos el costo o el precio de venta." });
   }
 
   const costoFinal = Number(costo) || 0;
   const margenFinal = margen !== undefined ? Number(margen) : 0.45;
   const precioVentaBase =
-    precioVenta !== undefined ? Number(precioVenta) : costoFinal * (1 + margenFinal);
+    precioVenta !== undefined
+      ? Number(precioVenta)
+      : costoFinal * (1 + margenFinal);
   const precioVentaFinal = redondearPrecioVenta(precioVentaBase);
-  const margenFinalReal = costoFinal > 0 ? (precioVentaFinal - costoFinal) / costoFinal : margenFinal;
+  const margenFinalReal =
+    costoFinal > 0 ? (precioVentaFinal - costoFinal) / costoFinal : margenFinal;
+
+  const stockFinal = Number(stock) || 0;
+  if (Math.abs(stockFinal) > 999999) {
+    return res.status(400).json({
+      error:
+        "Ese valor de stock no parece correcto (¿se escaneó un código de barras en este campo por error?). Máximo permitido: 999999.",
+    });
+  }
 
   const producto = await Product.create({
     descripcion,
@@ -184,7 +230,7 @@ async function createManual(req, res) {
     margen: margenFinalReal,
     precioVenta: precioVentaFinal,
     barcode: barcode || undefined,
-    stock: Number(stock) || 0,
+    stock: stockFinal,
     isActive: true,
     origen: "manual",
   });
@@ -200,17 +246,43 @@ async function createManual(req, res) {
 // frontend) y se recalcula el margen real a partir de él.
 async function updateProduct(req, res) {
   const { id } = req.params;
-  const { costo, margen, precioVenta, isActive, stock, mostrarEnAccesoRapido, familia, descripcion } = req.body;
+  const {
+    costo,
+    margen,
+    precioVenta,
+    isActive,
+    stock,
+    mostrarEnAccesoRapido,
+    familia,
+    descripcion,
+  } = req.body;
 
   const producto = await Product.findById(id);
-  if (!producto) return res.status(404).json({ error: "Producto no encontrado." });
+  if (!producto)
+    return res.status(404).json({ error: "Producto no encontrado." });
 
   if (isActive !== undefined) producto.isActive = isActive;
-  if (stock !== undefined) producto.stock = stock;
-  if (mostrarEnAccesoRapido !== undefined) producto.mostrarEnAccesoRapido = mostrarEnAccesoRapido;
+  if (stock !== undefined) {
+    const stockNum = Number(stock);
+    // Un stock real de librería nunca llega a 6 dígitos. Si aparece un
+    // número así de grande, es casi seguro que se escaneó un código de
+    // barras (o se pegó algo) por error en este campo, no una cantidad.
+    if (!Number.isFinite(stockNum) || Math.abs(stockNum) > 999999) {
+      return res.status(400).json({
+        error:
+          "Ese valor de stock no parece correcto (¿se escaneó un código de barras en este campo por error?). Máximo permitido: 999999.",
+      });
+    }
+    producto.stock = stockNum;
+  }
+  if (mostrarEnAccesoRapido !== undefined)
+    producto.mostrarEnAccesoRapido = mostrarEnAccesoRapido;
   if (familia !== undefined) producto.familia = familia || "SIN FAMILIA";
   if (descripcion !== undefined) {
-    if (!descripcion.trim()) return res.status(400).json({ error: "La descripción no puede quedar vacía." });
+    if (!descripcion.trim())
+      return res
+        .status(400)
+        .json({ error: "La descripción no puede quedar vacía." });
     producto.descripcion = descripcion.trim();
   }
 
@@ -220,10 +292,14 @@ async function updateProduct(req, res) {
     // El precio de venta manda: se respeta y se recalcula el margen real.
     producto.costo = costoNuevo;
     producto.precioVenta = redondearPrecioVenta(Number(precioVenta));
-    producto.margen = costoNuevo > 0 ? (producto.precioVenta - costoNuevo) / costoNuevo : producto.margen;
+    producto.margen =
+      costoNuevo > 0
+        ? (producto.precioVenta - costoNuevo) / costoNuevo
+        : producto.margen;
   } else if (costo !== undefined || margen !== undefined) {
     const margenNuevo = margen !== undefined ? Number(margen) : producto.margen;
-    const { precioVenta: nuevoPrecio, margen: margenReal } = calcularPrecioYMargen(costoNuevo, margenNuevo);
+    const { precioVenta: nuevoPrecio, margen: margenReal } =
+      calcularPrecioYMargen(costoNuevo, margenNuevo);
     producto.costo = costoNuevo;
     producto.precioVenta = nuevoPrecio || producto.precioVenta;
     producto.margen = margenReal;
@@ -238,11 +314,16 @@ async function updateProduct(req, res) {
 async function applyPriceUpdate(req, res) {
   const { updates } = req.body;
   if (!Array.isArray(updates) || updates.length === 0) {
-    return res.status(400).json({ error: "No se enviaron productos para actualizar." });
+    return res
+      .status(400)
+      .json({ error: "No se enviaron productos para actualizar." });
   }
 
   const operaciones = updates.map((u) => {
-    const { precioVenta, margen } = calcularPrecioYMargen(u.newCostPrice, u.newMargin);
+    const { precioVenta, margen } = calcularPrecioYMargen(
+      u.newCostPrice,
+      u.newMargin,
+    );
     return {
       updateOne: {
         filter: { _id: u.productId },
@@ -267,7 +348,9 @@ async function bulkPriceAdjustment(req, res) {
   const { percent } = req.body;
   const pct = Number(percent);
   if (!Number.isFinite(pct) || pct === 0) {
-    return res.status(400).json({ error: "Indicá un porcentaje distinto de cero." });
+    return res
+      .status(400)
+      .json({ error: "Indicá un porcentaje distinto de cero." });
   }
 
   const productos = await Product.find({ isActive: true });
@@ -277,7 +360,8 @@ async function bulkPriceAdjustment(req, res) {
 
   const operaciones = productos.map((p) => {
     const precioNuevo = redondearPrecioVenta(p.precioVenta * (1 + pct / 100));
-    const margenNuevo = p.costo > 0 ? (precioNuevo - p.costo) / p.costo : p.margen;
+    const margenNuevo =
+      p.costo > 0 ? (precioNuevo - p.costo) / p.costo : p.margen;
     return {
       updateOne: {
         filter: { _id: p._id },
@@ -288,6 +372,56 @@ async function bulkPriceAdjustment(req, res) {
 
   const resultado = await Product.bulkWrite(operaciones);
   res.json({ actualizados: resultado.modifiedCount ?? 0 });
+}
+
+// Foto del momento actual: cuánta plata hay invertida en todo el
+// inventario con stock cargado, a costo y a precio de venta. No depende
+// de ningún rango de fechas (a diferencia de las estadísticas de ventas)
+// porque es sobre lo que hay en el local ahora mismo, no sobre lo vendido.
+async function inventoryValue(req, res) {
+  try {
+    const productos = await Product.find({}, "costo precioVenta stock").lean();
+
+    let valorCosto = 0;
+    let valorVenta = 0;
+    let unidades = 0;
+    let productosConStock = 0;
+
+    for (const p of productos) {
+      const stock = Math.max(Number(p.stock) || 0, 0);
+      const costo = Math.max(Number(p.costo) || 0, 0);
+      const precioVenta = Math.max(Number(p.precioVenta) || 0, 0);
+
+      if (stock > 0) {
+        productosConStock += 1;
+        valorCosto += stock * costo;
+        valorVenta += stock * precioVenta;
+        unidades += stock;
+      }
+    }
+
+    const ganancia = valorVenta - valorCosto;
+
+    // Helper sin decimales (0 fracciones)
+    const formatNumber = (num) => {
+      const val = Math.round(Number(num) || 0);
+      return val.toLocaleString("es-AR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      });
+    };
+
+    return res.json({
+      valorCosto: formatNumber(valorCosto),
+      valorVenta: formatNumber(valorVenta),
+      gananciaPotencial: formatNumber(ganancia),
+      unidades: unidades.toLocaleString("es-AR"),
+      productosConStock: productosConStock.toLocaleString("es-AR"),
+    });
+  } catch (error) {
+    console.error("Error al calcular valor del inventario:", error);
+    return res.status(500).json({ error: "Error al calcular inventario" });
+  }
 }
 
 module.exports = {
@@ -301,4 +435,5 @@ module.exports = {
   updateProduct,
   applyPriceUpdate,
   bulkPriceAdjustment,
+  inventoryValue,
 };

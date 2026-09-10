@@ -120,6 +120,9 @@ export default function CierrePage() {
 
             <div className="card">
               <h2 className="font-semibold text-ink-900 mb-1">Historial de ventas</h2>
+              <p className="text-sm text-ink-400 mb-4">
+                Si te equivocaste en una venta, la podés eliminar — el stock vendido se repone solo.
+              </p>
 
               {data.ventas.length === 0 ? (
                 <p className="text-sm text-ink-400 py-6 text-center">No hay ventas registradas ese día.</p>
