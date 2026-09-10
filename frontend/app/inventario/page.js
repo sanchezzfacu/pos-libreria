@@ -290,7 +290,6 @@ function InventarioContenido() {
                     {sortBy === "descripcion" &&
                       (sortDir === "asc" ? "↑" : "↓")}
                   </th>
-                  <th>Código</th>
                   <th
                     className="text-right cursor-pointer select-none"
                     onClick={() => ordenarPor("costo")}
@@ -476,7 +475,6 @@ function FilaProducto({
           ))}
         </select>
       </td>
-      <td className="price text-ink-400">{producto.codigoProveedor}</td>
       <td className="text-right">
         <input
           type="number"
