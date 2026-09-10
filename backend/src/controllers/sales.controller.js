@@ -21,7 +21,7 @@ async function createSale(req, res) {
 
   const itemsConCosto = items.map((it) => ({
     ...it,
-    costoUnitario: it.product ? costoPorId.get(String(it.product)) ?? 0 : 0,
+    costoUnitario: it.product ? (costoPorId.get(String(it.product)) ?? 0) : 0,
   }));
 
   const total = itemsConCosto.reduce((acc, it) => {
@@ -45,7 +45,10 @@ async function createSale(req, res) {
   const operacionesStock = itemsConCosto
     .filter((it) => it.product)
     .map((it) => ({
-      updateOne: { filter: { _id: it.product }, update: { $inc: { stock: -it.cantidad } } },
+      updateOne: {
+        filter: { _id: it.product },
+        update: { $inc: { stock: -it.cantidad } },
+      },
     }));
   if (operacionesStock.length > 0) {
     await Product.bulkWrite(operacionesStock);
@@ -59,13 +62,22 @@ async function createSale(req, res) {
   res.status(201).json(sale);
 
   if (process.env.AFIP_ENABLED === "true") {
-    emitirFacturaC({ importeTotal: totalRedondeado, docTipo: sale.docTipo, docNro: sale.docNro })
+    emitirFacturaC({
+      importeTotal: totalRedondeado,
+      docTipo: sale.docTipo,
+      docNro: sale.docNro,
+    })
       .then(async (factura) => {
         sale.factura = { ...factura, intentos: 1 };
         await sale.save();
       })
       .catch(async (err) => {
-        console.error("[AFIP] Error facturando venta", sale._id.toString(), ":", err.message);
+        console.error(
+          "[AFIP] Error facturando venta",
+          sale._id.toString(),
+          ":",
+          err.message,
+        );
         sale.factura = { error: err.message, intentos: 1 };
         await sale.save();
       });
@@ -99,26 +111,41 @@ async function facturarVenta(req, res) {
     });
     sale.factura = { ...factura, intentos: (sale.factura?.intentos || 0) + 1 };
   } catch (err) {
-    sale.factura = { error: err.message, intentos: (sale.factura?.intentos || 0) + 1 };
+    sale.factura = {
+      error: err.message,
+      intentos: (sale.factura?.intentos || 0) + 1,
+    };
   }
   await sale.save();
 
   res.json(sale);
 }
 
-async function resumenPorDia(fecha) {
-  const inicio = new Date(fecha);
-  inicio.setHours(0, 0, 0, 0);
-  const fin = new Date(fecha);
-  fin.setHours(23, 59, 59, 999);
+async function resumenPorDia(fechaStr) {
+  // Construye la ventana del día exacto en horario de Argentina (-03:00)
+  const inicio = new Date(`${fechaStr}T00:00:00.000-03:00`);
+  const fin = new Date(`${fechaStr}T23:59:59.999-03:00`);
 
-  const ventas = await Sale.find({ createdAt: { $gte: inicio, $lte: fin } }).sort({ createdAt: 1 });
+  const ventas = await Sale.find({
+    createdAt: { $gte: inicio, $lte: fin },
+  }).sort({ createdAt: 1 });
 
-  const resumen = { efectivo: 0, transferencia: 0, tarjeta: 0, totalGeneral: 0, cantidadVentas: ventas.length };
+  const resumen = {
+    efectivo: 0,
+    transferencia: 0,
+    tarjeta: 0,
+    totalGeneral: 0,
+    cantidadVentas: ventas.length,
+  };
+
   for (const v of ventas) {
-    resumen[v.metodoPago] += v.total;
-    resumen.totalGeneral += v.total;
+    // Protección por si el método de pago no coincide con las llaves
+    if (resumen[v.metodoPago] !== undefined) {
+      resumen[v.metodoPago] += v.total || 0;
+    }
+    resumen.totalGeneral += v.total || 0;
   }
+
   resumen.efectivo = Math.round(resumen.efectivo * 100) / 100;
   resumen.transferencia = Math.round(resumen.transferencia * 100) / 100;
   resumen.tarjeta = Math.round(resumen.tarjeta * 100) / 100;
@@ -135,15 +162,27 @@ async function closeToday(req, res) {
 // Igual que closeToday pero para cualquier día (?date=YYYY-MM-DD), para
 // poder consultar el historial de un día anterior desde Cierre de caja.
 async function salesByDate(req, res) {
-  const { date } = req.query;
-  const fecha = date ? new Date(`${date}T12:00:00`) : new Date();
-  if (Number.isNaN(fecha.getTime())) {
-    return res.status(400).json({ error: "Fecha inválida." });
-  }
-  const { resumen, ventas } = await resumenPorDia(fecha);
-  res.json({ resumen, ventas });
-}
+  // Obtiene la fecha actual formateada según Argentina (YYYY-MM-DD) si no viene query
+  const hoyArg = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  });
+  const dateStr = req.query.date || hoyArg;
 
+  // Valida formato YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return res
+      .status(400)
+      .json({ error: "Fecha inválida. Use formato YYYY-MM-DD." });
+  }
+
+  try {
+    const { resumen, ventas } = await resumenPorDia(dateStr);
+    return res.json({ resumen, ventas });
+  } catch (error) {
+    console.error("Error al obtener ventas por fecha:", error);
+    return res.status(500).json({ error: "Error al consultar las ventas." });
+  }
+}
 // Elimina una venta directamente (sin dejar rastro) y devuelve el stock
 // que esa venta había descontado.
 async function deleteSale(req, res) {
@@ -154,7 +193,10 @@ async function deleteSale(req, res) {
   const operacionesStock = venta.items
     .filter((it) => it.product)
     .map((it) => ({
-      updateOne: { filter: { _id: it.product }, update: { $inc: { stock: it.cantidad } } },
+      updateOne: {
+        filter: { _id: it.product },
+        update: { $inc: { stock: it.cantidad } },
+      },
     }));
   if (operacionesStock.length > 0) {
     await Product.bulkWrite(operacionesStock);
@@ -169,7 +211,9 @@ function rango2(query) {
   let from, to;
 
   if (query.from || query.to) {
-    from = query.from ? new Date(query.from) : new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    from = query.from
+      ? new Date(query.from)
+      : new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     to = query.to ? new Date(query.to) : hoy;
   } else {
     const dias = Number(query.dias) || 0; // 0 = solo hoy
@@ -234,7 +278,8 @@ async function stats(req, res) {
 
   const gananciaBruta = ventasTotales - costoTotal;
   const gananciaNeta = gananciaBruta - gastosTotales;
-  const margenPromedio = ventasTotales > 0 ? (gananciaBruta / ventasTotales) * 100 : 0;
+  const margenPromedio =
+    ventasTotales > 0 ? (gananciaBruta / ventasTotales) * 100 : 0;
 
   const porDia = [...porDiaMap.values()]
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
@@ -272,7 +317,9 @@ async function productStats(req, res) {
 
   for (const venta of ventas) {
     for (const item of venta.items) {
-      const key = item.product ? String(item.product) : `desc:${item.descripcion}`;
+      const key = item.product
+        ? String(item.product)
+        : `desc:${item.descripcion}`;
       if (!porProducto.has(key)) {
         porProducto.set(key, {
           productId: item.product || null,
@@ -283,19 +330,26 @@ async function productStats(req, res) {
       }
       const fila = porProducto.get(key);
       fila.cantidad += item.cantidad;
-      fila.ingresos += item.precioUnitario * item.cantidad - (item.descuento || 0);
+      fila.ingresos +=
+        item.precioUnitario * item.cantidad - (item.descuento || 0);
     }
   }
 
-  const productIds = [...porProducto.values()].filter((f) => f.productId).map((f) => f.productId);
-  const productos = await Product.find({ _id: { $in: productIds } }).select("stock");
+  const productIds = [...porProducto.values()]
+    .filter((f) => f.productId)
+    .map((f) => f.productId);
+  const productos = await Product.find({ _id: { $in: productIds } }).select(
+    "stock",
+  );
   const stockPorId = new Map(productos.map((p) => [String(p._id), p.stock]));
 
   const ranking = [...porProducto.values()]
     .map((f) => ({
       ...f,
       ingresos: Math.round(f.ingresos * 100) / 100,
-      stockActual: f.productId ? stockPorId.get(String(f.productId)) ?? null : null,
+      stockActual: f.productId
+        ? (stockPorId.get(String(f.productId)) ?? null)
+        : null,
     }))
     .sort((a, b) => b.cantidad - a.cantidad);
 

@@ -19,7 +19,9 @@ export default function InventarioPage() {
 function InventarioContenido() {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
-  const [categoriaFiltro, setCategoriaFiltro] = useState(searchParams.get("categoria") || "");
+  const [categoriaFiltro, setCategoriaFiltro] = useState(
+    searchParams.get("categoria") || "",
+  );
   const [categorias, setCategorias] = useState([]);
   const [sortBy, setSortBy] = useState("descripcion");
   const [sortDir, setSortDir] = useState("asc");
@@ -80,10 +82,15 @@ function InventarioContenido() {
   async function guardarCampo(producto, cambios) {
     setGuardando((g) => ({ ...g, [producto._id]: true }));
     try {
-      const actualizado = await api(`/products/${producto._id}`, { method: "PATCH", body: cambios });
+      const actualizado = await api(`/products/${producto._id}`, {
+        method: "PATCH",
+        body: cambios,
+      });
       setData((prev) => ({
         ...prev,
-        items: prev.items.map((p) => (p._id === producto._id ? actualizado : p)),
+        items: prev.items.map((p) =>
+          p._id === producto._id ? actualizado : p,
+        ),
       }));
     } catch (err) {
       setError(err.message);
@@ -102,7 +109,9 @@ function InventarioContenido() {
       });
       setData((prev) => ({
         ...prev,
-        items: prev.items.map((p) => (p._id === producto._id ? actualizado : p)),
+        items: prev.items.map((p) =>
+          p._id === producto._id ? actualizado : p,
+        ),
       }));
     } catch (err) {
       setError(err.message);
@@ -121,7 +130,9 @@ function InventarioContenido() {
         method: "POST",
         body: { percent: pct },
       });
-      setAvisoAjuste(`Listo: ${resultado.actualizados} productos ajustados ${pct > 0 ? "+" : ""}${pct}%.`);
+      setAvisoAjuste(
+        `Listo: ${resultado.actualizados} productos ajustados ${pct > 0 ? "+" : ""}${pct}%.`,
+      );
       setConfirmandoAjuste(false);
       cargar();
     } catch (err) {
@@ -139,42 +150,45 @@ function InventarioContenido() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-xs tracking-widest text-stamp-500 uppercase mb-1">Catálogo</p>
+            <p className="font-mono text-xs tracking-widest text-stamp-500 uppercase mb-1">
+              Catálogo
+            </p>
             <h1 className="text-2xl font-semibold text-ink-900">Inventario</h1>
             <p className="text-sm text-ink-400 mt-1 max-w-2xl">
-              Consultá y editá nombre, precio, margen y stock directamente, vinculá códigos de barra y elegí
-              qué aparece como acceso rápido en el punto de venta.
+              Consultá y editá nombre, precio, margen y stock directamente,
+              vinculá códigos de barra y elegí qué aparece como acceso rápido en
+              el punto de venta.
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Link href="/inventario/importar" className="btn-ghost">
-              Importar PDF de proveedor
-            </Link>
             <Link href="/inventario/categorias" className="btn-ghost">
               Categorías
-            </Link>
-            <Link href="/inventario/actualizar-precios" className="btn-ghost">
-              Actualizar precios
             </Link>
             <Link href="/inventario/manual" className="btn-ghost">
               Agregar producto manual
             </Link>
+            <div className="flex items-center justify-end gap-4 flex-wrap">
+              <button
+                onClick={() => setAjusteAbierto((v) => !v)}
+                className="btn-ghost shrink-0"
+              >
+                {ajusteAbierto ? "Cerrar" : "Ajustar todos los precios"}
+              </button>
+            </div>
           </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-4 flex-wrap">
-          <button onClick={() => setAjusteAbierto((v) => !v)} className="btn-ghost shrink-0">
-            {ajusteAbierto ? "Cerrar" : "Ajustar todos los precios"}
-          </button>
         </div>
 
         {ajusteAbierto && (
           <div className="card bg-stamp-400/10 border-stamp-400/30">
-            <h2 className="font-semibold text-ink-900 mb-1">Ajuste general de precios</h2>
+            <h2 className="font-semibold text-ink-900 mb-1">
+              Ajuste general de precios
+            </h2>
             <p className="text-sm text-ink-600 mb-3">
-              Sube o baja el precio de venta de <strong>todos los productos activos</strong> un mismo
-              porcentaje (ej. para acompañar la inflación mensual). Usá un número negativo para bajar
-              precios. El resultado se redondea a múltiplo de $10 y el margen se recalcula solo.
+              Sube o baja el precio de venta de{" "}
+              <strong>todos los productos activos</strong> un mismo porcentaje
+              (ej. para acompañar la inflación mensual). Usá un número negativo
+              para bajar precios. El resultado se redondea a múltiplo de $10 y
+              el margen se recalcula solo.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center rounded-lg border border-ink-100 overflow-hidden bg-white">
@@ -188,7 +202,9 @@ function InventarioContenido() {
                   }}
                   className="w-24 px-3 py-2 text-sm font-mono text-right focus:outline-none"
                 />
-                <span className="bg-ink-50 px-3 py-2 text-sm text-ink-400">%</span>
+                <span className="bg-ink-50 px-3 py-2 text-sm text-ink-400">
+                  %
+                </span>
               </div>
 
               {!confirmandoAjuste ? (
@@ -205,16 +221,25 @@ function InventarioContenido() {
                     ¿Confirmás {Number(porcentajeAjuste) > 0 ? "+" : ""}
                     {porcentajeAjuste}% en TODOS los productos activos?
                   </span>
-                  <button onClick={aplicarAjusteGlobal} disabled={aplicandoAjuste} className="btn-primary bg-red-600 hover:bg-red-700">
+                  <button
+                    onClick={aplicarAjusteGlobal}
+                    disabled={aplicandoAjuste}
+                    className="btn-primary bg-red-600 hover:bg-red-700"
+                  >
                     {aplicandoAjuste ? "Aplicando…" : "Sí, confirmar"}
                   </button>
-                  <button onClick={() => setConfirmandoAjuste(false)} className="btn-ghost">
+                  <button
+                    onClick={() => setConfirmandoAjuste(false)}
+                    className="btn-ghost"
+                  >
                     Cancelar
                   </button>
                 </>
               )}
             </div>
-            {avisoAjuste && <p className="text-sm text-ink-700 mt-3">{avisoAjuste}</p>}
+            {avisoAjuste && (
+              <p className="text-sm text-ink-700 mt-3">{avisoAjuste}</p>
+            )}
           </div>
         )}
 
@@ -257,19 +282,37 @@ function InventarioContenido() {
             <table className="table-ledger w-full min-w-[820px]">
               <thead className="bg-white">
                 <tr>
-                  <th className="cursor-pointer select-none" onClick={() => ordenarPor("descripcion")}>
-                    Producto {sortBy === "descripcion" && (sortDir === "asc" ? "↑" : "↓")}
+                  <th
+                    className="cursor-pointer select-none"
+                    onClick={() => ordenarPor("descripcion")}
+                  >
+                    Producto{" "}
+                    {sortBy === "descripcion" &&
+                      (sortDir === "asc" ? "↑" : "↓")}
                   </th>
                   <th>Código</th>
-                  <th className="text-right cursor-pointer select-none" onClick={() => ordenarPor("costo")}>
-                    Costo {sortBy === "costo" && (sortDir === "asc" ? "↑" : "↓")}
+                  <th
+                    className="text-right cursor-pointer select-none"
+                    onClick={() => ordenarPor("costo")}
+                  >
+                    Costo{" "}
+                    {sortBy === "costo" && (sortDir === "asc" ? "↑" : "↓")}
                   </th>
                   <th className="text-right">Margen</th>
-                  <th className="text-right cursor-pointer select-none" onClick={() => ordenarPor("precioVenta")}>
-                    Venta {sortBy === "precioVenta" && (sortDir === "asc" ? "↑" : "↓")}
+                  <th
+                    className="text-right cursor-pointer select-none"
+                    onClick={() => ordenarPor("precioVenta")}
+                  >
+                    Venta{" "}
+                    {sortBy === "precioVenta" &&
+                      (sortDir === "asc" ? "↑" : "↓")}
                   </th>
-                  <th className="text-right cursor-pointer select-none" onClick={() => ordenarPor("stock")}>
-                    Stock {sortBy === "stock" && (sortDir === "asc" ? "↑" : "↓")}
+                  <th
+                    className="text-right cursor-pointer select-none"
+                    onClick={() => ordenarPor("stock")}
+                  >
+                    Stock{" "}
+                    {sortBy === "stock" && (sortDir === "asc" ? "↑" : "↓")}
                   </th>
                   <th>Cód. barras</th>
                   <th className="text-center">Acc. rápido</th>
@@ -303,7 +346,11 @@ function InventarioContenido() {
               {data.total} productos {loading && "· cargando…"}
             </span>
             <div className="flex items-center gap-2">
-              <button className="btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <button
+                className="btn-ghost"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 ← Anterior
               </button>
               <span className="text-sm text-ink-600 px-2">
@@ -324,13 +371,25 @@ function InventarioContenido() {
   );
 }
 
-function FilaProducto({ producto, categorias, guardando, onGuardarCampo, onGuardarBarcode }) {
-  const [descripcionLocal, setDescripcionLocal] = useState(producto.descripcion);
+function FilaProducto({
+  producto,
+  categorias,
+  guardando,
+  onGuardarCampo,
+  onGuardarBarcode,
+}) {
+  const [descripcionLocal, setDescripcionLocal] = useState(
+    producto.descripcion,
+  );
   const [stockLocal, setStockLocal] = useState(producto.stock ?? 0);
   const [barcodeLocal, setBarcodeLocal] = useState(producto.barcode || "");
   const [costoLocal, setCostoLocal] = useState(String(producto.costo ?? 0));
-  const [margenLocal, setMargenLocal] = useState(String(Math.round((producto.margen ?? 0) * 100)));
-  const [ventaLocal, setVentaLocal] = useState(String(producto.precioVenta ?? 0));
+  const [margenLocal, setMargenLocal] = useState(
+    String(Math.round((producto.margen ?? 0) * 100)),
+  );
+  const [ventaLocal, setVentaLocal] = useState(
+    String(producto.precioVenta ?? 0),
+  );
 
   function onBlurDescripcion() {
     const valor = descripcionLocal.trim();
@@ -338,40 +397,53 @@ function FilaProducto({ producto, categorias, guardando, onGuardarCampo, onGuard
       setDescripcionLocal(producto.descripcion); // no se permite vaciar el nombre
       return;
     }
-    if (valor !== producto.descripcion) onGuardarCampo(producto, { descripcion: valor });
+    if (valor !== producto.descripcion)
+      onGuardarCampo(producto, { descripcion: valor });
   }
 
   function onChangeCosto(v) {
     setCostoLocal(v);
     const costo = Number(v) || 0;
     const margen = Number(margenLocal) || 0;
-    if (costo > 0) setVentaLocal(String(redondearPrecio(costo * (1 + margen / 100))));
+    if (costo > 0)
+      setVentaLocal(String(redondearPrecio(costo * (1 + margen / 100))));
   }
 
   function onChangeMargen(v) {
     setMargenLocal(v);
     const costo = Number(costoLocal) || 0;
     const margen = Number(v) || 0;
-    if (costo > 0) setVentaLocal(String(redondearPrecio(costo * (1 + margen / 100))));
+    if (costo > 0)
+      setVentaLocal(String(redondearPrecio(costo * (1 + margen / 100))));
   }
 
   function onChangeVenta(v) {
     setVentaLocal(v);
     const costo = Number(costoLocal) || 0;
     const venta = Number(v) || 0;
-    if (costo > 0) setMargenLocal(String(Math.round(((venta - costo) / costo) * 100)));
+    if (costo > 0)
+      setMargenLocal(String(Math.round(((venta - costo) / costo) * 100)));
   }
 
   function onBlurCosto() {
-    onGuardarCampo(producto, { costo: Number(costoLocal) || 0, margen: (Number(margenLocal) || 0) / 100 });
+    onGuardarCampo(producto, {
+      costo: Number(costoLocal) || 0,
+      margen: (Number(margenLocal) || 0) / 100,
+    });
   }
   function onBlurMargen() {
-    onGuardarCampo(producto, { costo: Number(costoLocal) || 0, margen: (Number(margenLocal) || 0) / 100 });
+    onGuardarCampo(producto, {
+      costo: Number(costoLocal) || 0,
+      margen: (Number(margenLocal) || 0) / 100,
+    });
   }
   function onBlurVenta() {
     const redondeado = redondearPrecio(Number(ventaLocal) || 0);
     setVentaLocal(String(redondeado));
-    onGuardarCampo(producto, { costo: Number(costoLocal) || 0, precioVenta: redondeado });
+    onGuardarCampo(producto, {
+      costo: Number(costoLocal) || 0,
+      precioVenta: redondeado,
+    });
   }
 
   return (
@@ -388,8 +460,12 @@ function FilaProducto({ producto, categorias, guardando, onGuardarCampo, onGuard
           className="w-full font-medium bg-transparent border border-transparent hover:border-ink-100 focus:border-stamp-500 focus:bg-white rounded px-1 py-0.5 -ml-1"
         />
         <select
-          value={producto.familia === "SIN FAMILIA" ? "" : producto.familia || ""}
-          onChange={(e) => onGuardarCampo(producto, { familia: e.target.value })}
+          value={
+            producto.familia === "SIN FAMILIA" ? "" : producto.familia || ""
+          }
+          onChange={(e) =>
+            onGuardarCampo(producto, { familia: e.target.value })
+          }
           className="block mt-1 text-xs text-ink-400 border border-transparent hover:border-ink-100 rounded px-1 py-0.5 -ml-1 bg-transparent"
         >
           <option value="">Sin categoría</option>
@@ -444,7 +520,9 @@ function FilaProducto({ producto, categorias, guardando, onGuardarCampo, onGuard
           onBlur={() => onGuardarCampo(producto, { stock: Number(stockLocal) })}
           maxLength={6}
           className={`w-20 text-right price rounded border py-1 px-1.5 ${
-            Number(stockLocal) <= 0 ? "border-red-200 bg-red-50 text-red-700" : "border-ink-100"
+            Number(stockLocal) <= 0
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-ink-100"
           }`}
         />
       </td>
@@ -465,7 +543,11 @@ function FilaProducto({ producto, categorias, guardando, onGuardarCampo, onGuard
         <input
           type="checkbox"
           checked={!!producto.mostrarEnAccesoRapido}
-          onChange={(e) => onGuardarCampo(producto, { mostrarEnAccesoRapido: e.target.checked })}
+          onChange={(e) =>
+            onGuardarCampo(producto, {
+              mostrarEnAccesoRapido: e.target.checked,
+            })
+          }
           className="accent-ink-700"
         />
       </td>
@@ -473,7 +555,9 @@ function FilaProducto({ producto, categorias, guardando, onGuardarCampo, onGuard
         <input
           type="checkbox"
           checked={!!producto.isActive}
-          onChange={(e) => onGuardarCampo(producto, { isActive: e.target.checked })}
+          onChange={(e) =>
+            onGuardarCampo(producto, { isActive: e.target.checked })
+          }
           className="accent-cash"
         />
       </td>
